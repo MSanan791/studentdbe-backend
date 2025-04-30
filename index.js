@@ -1,8 +1,6 @@
 'use strict'
 const express = require('express')
 const httpErrors = require('http-errors')
-const path = require('path')
-const ejs = require('ejs')
 const pino = require('pino')
 const pinoHttp = require('pino-http')
 
@@ -44,11 +42,7 @@ module.exports = function main (options, cb) {
   // Create the express app
   const app = express()
 
-  // Template engine
-  app.engine('html', ejs.renderFile)
-  app.set('views', path.join(__dirname, 'views'))
-  app.set('view engine', 'html')
-  
+
   // Common middleware
   // app.use(/* ... */)
   app.use(pinoHttp({ logger }))
@@ -69,11 +63,14 @@ module.exports = function main (options, cb) {
     if (err.status >= 500) {
       logger.error(err)
     }
-    res.locals.name = ''
-    res.locals.error = err
-    res.status(err.status || 500).render('error')
+    res.status(err.status || 500).json({
+      messages: [{
+        code: err.code || 'InternalServerError',
+        message: err.message
+      }]
+    })
   })
-  
+
   // Start server
   server = app.listen(opts.port, opts.host, function (err) {
     if (err) {

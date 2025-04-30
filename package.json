@@ -1,5 +1,5 @@
 {
-  "name": "Backend",
+  "name": "\tBackend",
   "version": "1.0.0",
   "description": "",
   "author": "sanan <sanan791@gmail.com>",
@@ -15,7 +15,6 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "ejs": "^3.1.10",
     "express": "^5.1.0",
     "http-errors": "^2.0.0",
     "pino": "^9.6.0",
