@@ -1,7 +1,27 @@
 #! /usr/bin/env node
 'use strict'
 
-// Pass configuration to application
+const express = require("express");
+const app = express();
+require('dotenv').config();
+
+const studentRoutes = require("../handlers/student");
+const institutionRoutes = require("../handlers/institution");
+const providerRoutes = require("../handlers/provider");
+
+app.use(express.json());
+
+// Routes
+app.use("/api/student", studentRoutes);
+app.use("/api/institution", institutionRoutes);
+app.use("/api/provider", providerRoutes);
+
+// Root route
+app.get("/", (req, res) => {
+    res.send("Internship Tracker Backend is running");
+});
+
+// Pass configuration to applications
 require('../')({
   port: 8000,
   host: 'localhost'
