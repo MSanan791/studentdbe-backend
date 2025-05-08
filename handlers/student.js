@@ -91,13 +91,19 @@ router.post("/apply-internship", async (req, res) => {
 //Search for available internships (filtered by required field)
 // Expects Field from frontEnd in the URL
 router.get("/search-internshipByField", async (req, res) => {
-    const { field } = req.query;
-    try {
-        const result = await pool.query(query_srchIntshp, [field]);
-    res.json(result.rows);
+  const { field } = req.query;
+  try {
+      let result; // Declare result variable outside the if-else block
+      if (field !== undefined) {
+          result = await pool.query(query_srchIntshp, [field]);
+      } else {
+          result = await pool.query('SELECT * FROM Internship_application order by id;');
+      }
+
+      res.json(result.rows); // Use the result variable here
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Server Error");
+      console.error(err);
+      res.status(500).send("Server Error");
   }
 });
 
@@ -160,6 +166,41 @@ router.put("/updateStudent/:id", async (req, res) => {
       res.status(500).send("Server Error");
     }
   });
+  
+ // PUT /api/student/update-internship-application/:id
+router.put('/update-internship-application/:id', async (req, res) => {
+  const { id } = req.params;
+  const { status_, applieddate, stdid, intshpid, startdate, enddate } = req.body;
+  console.log("Received data:", req.body); // Log the received data for debugging
+  if (!status_ || !applieddate || !stdid || !intshpid || !startdate || !enddate) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    const result = await pool.query(
+      `WITH updated_application AS (
+        UPDATE internship_application
+        SET status_ = $1,
+            applieddate = $2,
+            stdid = $3,
+            intshpid = $4
+        WHERE id = $5
+        RETURNING *
+      )
+      INSERT INTO internship_progress (startdate, enddate, status_, stdid, intshpid)
+      SELECT $6, $7, 'In Progress', $3, $4
+      WHERE $1 = 'Accepted'
+      RETURNING *;`,
+      [status_, applieddate, stdid, intshpid, id, startdate, enddate]
+    );
+
+    res.status(200).json({ message: 'Internship updated', updatedInternship: result.rows[0] });
+  } catch (error) {
+    console.error('Update error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
   
 
 module.exports = router;

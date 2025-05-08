@@ -92,6 +92,71 @@ router.post("/post-internship", async (req, res) => {
     }
 });
 
+router.get("/search-internship-Track", async (req, res) => {
+  const { stdid, intshpid, status_, startdate, enddate } = req.query;
+
+  try {
+      let query = 'SELECT * FROM internship_progress WHERE 1=1';
+      let queryParams = [];
+
+      // Dynamically add conditions based on provided query parameters
+      if (stdid !== undefined) {
+          query += ' AND stdid = $' + (queryParams.length + 1);
+          queryParams.push(stdid);
+      }
+      if (intshpid !== undefined) {
+          query += ' AND intshpid = $' + (queryParams.length + 1);
+          queryParams.push(intshpid);
+      }
+      if (status_ !== undefined) {
+          query += ' AND status_ = $' + (queryParams.length + 1);
+          queryParams.push(status_);
+      }
+      if (startdate !== undefined) {
+          query += ' AND startdate >= $' + (queryParams.length + 1);
+          queryParams.push(startdate);
+      }
+      if (enddate !== undefined) {
+          query += ' AND enddate <= $' + (queryParams.length + 1);
+          queryParams.push(enddate);
+      }
+
+      // If no filters are provided, fetch all internship progress records
+      if (queryParams.length === 0) {
+          query = 'SELECT * FROM internship_progress ORDER BY id;';
+      }
+
+      // Execute the query
+      const result = await pool.query(query, queryParams);
+
+      res.json(result.rows); // Send back the results
+  } catch (err) {
+      console.error(err);
+      res.status(500).send("Server Error");
+  }
+});
+
+router.put("/update-internship-Track/:id", async (req, res) => {
+    const { status_, startdate, enddate } = req.body;
+    const { id } = req.params; // Extract the id from the route parameters
+
+    try {
+        const result = await pool.query(
+            `UPDATE Internship_Progress SET Status_ = $1, StartDate = $2, EndDate = $3 WHERE ID = $4 RETURNING *`,
+            [status_, startdate, enddate, id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Internship progress not found" });
+        }
+
+        res.json(result.rows[0]); // Return the updated row
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to update internship progress" });
+    }
+});
+
 // Review Internship Applications
 // Expects InternshipID in URL
 router.get("/review-applications", async (req, res) => {
