@@ -33,72 +33,51 @@ const query_seeStdHist = `SELECT s.*, inp.*, inshp.Title, inshp.Max_Slots
 // Add Provider (Company, Lab, Professor)
 // Expects Type, Name, Email, Website, Field, and additional fields based on type
 router.post("/add-provider", async (req, res) => {
-    const { Type, Name, Email, Website, Field, ExtraFields } = req.body;
+    const { name_, type_, email, website, field } = req.body;
+  
     try {
-        let tableName, columnNames, columnValues;
-
-        if (Type === 'Company') {
-            tableName = 'Company';
-            columnNames = 'Size';
-            columnValues = ExtraFields.Size;
-        } else if (Type === 'Lab') {
-            tableName = 'Lab';
-            columnNames = 'Supervisor, Capacity, Funding_Src, Afltd_Uni';
-            columnValues = [
-                ExtraFields.Supervisor,
-                ExtraFields.Capacity,
-                ExtraFields.Funding_Src,
-                ExtraFields.Afltd_Uni
-            ];
-        } else if (Type === 'Professor') {
-            tableName = 'Professor';
-            columnNames = 'Experience, Research_Interests, Publications, Uni_ID';
-            columnValues = [
-                ExtraFields.Experience,
-                ExtraFields.Research_Interests,
-                ExtraFields.Publications,
-                ExtraFields.Uni_ID
-            ];
-        } else {
-            return res.status(400).json({ message: "Invalid Provider Type" });
-        }
-
-        // Format final query safely
-        const finalQuery = `
-            WITH new_provider AS (
-                INSERT INTO Internship_Provider (Name_, Type_, Email, Website, Field)
-                VALUES ($1, $2, $3, $4, $5)
-                RETURNING ID
-            )
-            INSERT INTO ${tableName} (ID, ${columnNames})
-            VALUES ((SELECT ID FROM new_provider), ${columnValues.map((_, i) => `$${i + 6}`).join(', ')})
-            RETURNING *;
-            `;
-
-        const params = [Name, Type, Email, Website, Field, ...columnValues];
-        const result = await pool.query(finalQuery, params);
-        res.json(result.rows[0]);
+      // Insert data into Internship_Provider table without specifying the ID
+      const result = await pool.query(
+        `INSERT INTO Internship_Provider (Name_, Type_, Email, Website, Field)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [name_, type_, email, website, field]
+      );
+  
+      // Return the newly added provider data
+      res.status(201).json(result.rows[0]);
+  
     } catch (err) {
-        console.error(err);
-        res.status(500).send("Server Error");
+      console.error("Error in /add-provider:", err);
+      res.status(500).json({ error: "Failed to add provider" });
     }
-});
+  });
+  
 
 // Remove Provider
 // Expects ProviderName from frontend
-router.delete("/remove-provider", async (req, res) => {
-    const { ProviderName } = req.body;
+// Remove Provider
+// Expects ProviderName from frontend
+// Remove Provider (By ID)
+router.delete("/remove-provider/:id", async (req, res) => {
+    const { id } = req.params;  // Expecting ID from the frontend
+    console.log(id);  // Log the id to ensure it's passed correctly
+    if (!id) {
+        return res.status(400).json({ message: "ID parameter is missing" });
+    }
     try {
-        const result = await pool.query(query_remProvider, [ProviderName]);
-        if (result.rowCount === 0)
-            return res.status(404).json({ message: "Provider not found with this name" });
-        else
+        const result = await pool.query("DELETE FROM Internship_Provider WHERE ID = $1 RETURNING *", [id]);
+        
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Provider not found" });
+        } else {
             res.status(200).json({ message: "Provider removed successfully", deletedProvider: result.rows[0] });
+        }
     } catch (err) {
         console.error(err);
         res.status(500).send("Server Error");
     }
 });
+
 
 // Post an Internship
 // Expects Title, Field, Description_, StartDate, EndDate, Duration, Max_Slots, ProviderName from frontend
@@ -184,5 +163,34 @@ router.get("/internship-history-by-provider", async (req, res) => {
         res.status(500).send("Server Error");
     }
 });
+
+router.get("/get-providers", async (req, res) => {
+    try {
+      const result = await pool.query("SELECT * FROM Internship_Provider order by id");
+      res.json(result.rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to fetch providers" });
+    }
+  });
+  
+  router.put("/update-provider/:id", async (req, res) => {
+    const { name_, type_, email, website, field } = req.body;
+    const { id } = req.params; // ✅ Extract the id from the route parameters
+    try {
+      const result = await pool.query(
+        `UPDATE Internship_Provider SET Name_ = $1, Type_ = $2, Email = $3, Website = $4, Field = $5 WHERE ID = $6 RETURNING *`,
+        [name_, type_, email, website, field, id]
+      );
+      if (result.rowCount === 0) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+      res.json(result.rows[0]); // ✅ Return the updated row
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to update provider" });
+    }
+  });
+  
 
 module.exports = router;

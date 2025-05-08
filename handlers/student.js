@@ -5,7 +5,7 @@ const pool = require("../db");
 const query_addStd = `WITH inst AS (SELECT ID as inst_id FROM institution WHERE name_ = $1 LIMIT 1)
                       INSERT INTO student (Name_, Field_of_Interest, DoB, City, Email, ContactNo, InstID)
                       VALUES ($2, $3, $4, $5, $6, $7, (SELECT inst_id FROM inst));`
-const query_remStd = `delete from Student where ID = (Select ID from Student where Name_ = $1 Limit 1) Returning *`
+// const query_remStd = `delete from Student where ID = (Select ID from Student where Name_ = $1 Limit 1) Returning *`
 const query_applyIntshp = `INSERT INTO Internship_Application (Status_, AppliedDate, StdID, IntshpID)
                            VALUES ('Applied', 
                                    CURRENT_DATE, 
@@ -14,6 +14,22 @@ const query_applyIntshp = `INSERT INTO Internship_Application (Status_, AppliedD
 const query_srchIntshp = `select * from Internship where Field = $1;`
 const query_histAppld = `Select * from Internship_Application where StdID = (Select ID from Student where Name_ = $1 Limit 1);`
 const query_histPrgrs = `Select * from Internship_Progress where StdID = (Select ID from Student where Name_ = $1 Limit 1);`
+const query_remStd = `DELETE FROM Student WHERE ID = $1 RETURNING *`;
+
+router.delete("/remove-student/:id", async (req, res) => {
+    const { id } = req.params; // Note: Use `req.params` for URL parameters
+    try {
+      const result = await pool.query(query_remStd, [id]);
+      if (result.rowCount === 0)
+        return res.status(404).json({ message: "Student not found with this ID" });
+      res.status(200).json({ message: "Student removed successfully", deletedStudent: result.rows[0] });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send("Server Error");
+    }
+  });
+  
+  
 
 //To add a student in the database
 // Expects InstName, StdName, Field_of_Interest, DoB, City, Email, ContactNo from frontEnd in JSON
@@ -27,7 +43,21 @@ router.post("/add-student", async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
+// SQL query to get all student information
+const query_getAllStudents = `SELECT * FROM student order by id;`;
 
+// API to get all student information
+router.get("/get-students", async (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store'); // Disable caching
+      const result = await pool.query(query_getAllStudents);
+      res.json(result.rows); // Send all rows as JSON response
+    } catch (err) {
+      console.error(err);
+      res.status(500).send("Server Error");
+    }
+  });
+  
 //Student applies for internship
 // Expects StdName, IntshpTitle from FrontEnd in JSON
 router.post("/apply-internship", async (req, res) => {
@@ -43,20 +73,20 @@ router.post("/apply-internship", async (req, res) => {
 
 //Remove Student from Database
 // Expects StdName from frontEnd in JSON
-router.delete("/remove-student", async (req, res) => {
-    const { StdName } = req.body;
-    try {
-        const result = await pool.query(query_remStd, [StdName]);
+// router.delete("/remove-student", async (req, res) => {
+//     const { StdName } = req.body;
+//     try {
+//         const result = await pool.query(query_remStd, [StdName]);
 
-        if (result.rowCount === 0)
-            return res.status(404).json({ message: "Student not found with this name" });
-        else
-            res.status(200).json({ message: "Student removed successfully", deletedStudent: result.rows[0]});
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Server Error");
-    }
-});
+//         if (result.rowCount === 0)
+//             return res.status(404).json({ message: "Student not found with this name" });
+//         else
+//             res.status(200).json({ message: "Student removed successfully", deletedStudent: result.rows[0]});
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).send("Server Error");
+//     }
+// });
 
 //Search for available internships (filtered by required field)
 // Expects Field from frontEnd in the URL
@@ -96,5 +126,40 @@ router.get("/search-historyProgress", async (req, res) => {
         res.status(500).send("Server Error");
     }
 });
+
+router.put("/updateStudent/:id", async (req, res) => {
+    const { id } = req.params;
+    const { name_, field_of_interest, dob, city, email, contactno, instid } = req.body;
+  
+    const query1 = `
+      UPDATE Student
+    SET
+    name_ = $1,
+    field_of_interest = $2,
+    dob = $3,
+    city = $4,
+    email = $5,
+    contactno = $6,
+    instid = $7
+    WHERE id = $8
+    RETURNING *;
+    `;
+  
+    try {
+      const result = await pool.query(query1, [
+       name_, field_of_interest, dob, city, email, contactno, instid,id
+      ]);
+  
+      if (result.rowCount === 0) {
+        return res.status(404).json({ message: "Student not found with this ID" });
+      }
+  
+      res.status(200).json({ message: "Student updated successfully", updatedStudent: result.rows[0] });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send("Server Error");
+    }
+  });
+  
 
 module.exports = router;

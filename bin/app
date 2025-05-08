@@ -4,11 +4,11 @@
 const express = require("express");
 const app = express();
 require('dotenv').config();
-
+const cors = require('cors');
+app.use(cors());
 const studentRoutes = require("../handlers/student");
 const institutionRoutes = require("../handlers/institution");
 const providerRoutes = require("../handlers/provider");
-
 app.use(express.json());
 
 // Routes

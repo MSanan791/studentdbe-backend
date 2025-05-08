@@ -41,12 +41,13 @@ module.exports = function main (options, cb) {
 
   // Create the express app
   const app = express()
-
+  const cors = require('cors');
+  app.use(cors());
 
   // Common middleware
   // app.use(/* ... */)
   app.use(pinoHttp({ logger }))
-      
+  app.use(express.json());
   // Register routes
   // @NOTE: require here because this ensures that even syntax errors
   // or other startup related errors are caught logged and debuggable.
